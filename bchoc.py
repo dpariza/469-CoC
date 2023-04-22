@@ -33,6 +33,7 @@ else:
         # else initialize the blockchain file and INITIAL block.
         # when initializing we can use this
         # initblock = struct.pack('32s d 16s I 12s I 14s', "00000000000000000000000000000000", TIME, "0000000000000000", 0, "INITIAL", 14, "Initial block")
+        # then we can just write out to the file the initblock
 
     elif sys.argv[1] = "verify": # handle verification
         
