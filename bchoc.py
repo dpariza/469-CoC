@@ -10,13 +10,13 @@ class Block:
 
 	def __init__(self, previous_hash="00000000000000000000000000000000", timestamp=0.0, case_id="0000000000000000",
 				 evidence_id=0, state="INITIAL", data_length=14, data="Initial block"):
-		self.previous_hash = bytes(previous_hash, 'utf-8')
+		self.previous_hash = previous_hash
 		self.timestamp = timestamp
-		self.case_id = bytes(case_id, 'utf-8')
+		self.case_id = case_id
 		self.evidence_id = evidence_id
-		self.state = bytes(state, 'utf-8')
+		self.state = state
 		self.data_length = data_length
-		self.data = bytes(data, 'utf-8')
+		self.data = data
 
 	def __str__(self):
 		return 'Previous Hash: {}\nTimestamp: {}\nCase ID: {}\nEvidence ID: {}\nState: {}\nData Length: {}\nData: {}'.format(
@@ -47,23 +47,54 @@ def init():
 
 		# If file is empty, init block is created and written to file
 		init_block = Block()
-		init_bytes = struct.pack('32s d 16s I 12s I 14s', init_block.previous_hash, init_block.timestamp,
-								 init_block.case_id, init_block.evidence_id, init_block.state, init_block.data_length,
-								 init_block.data)
+		init_bytes = pack_bytes(init_block, 14)
 
 		with open(filepath, 'wb') as f:
 			f.write(init_bytes)
 
 	else:
 
-		print("file not empty, parsing init")
-		with open(filepath, 'rb') as f:
-			info = f.read(90)
-			unpacked = struct.unpack('32s d 16s I 12s I 14s', info)
-			print(unpacked)
+		blockchain = parse_file(filepath)
 
-	# check whether init block unpacks correctly
-	# if not, build init block
+
+# check whether init block unpacks correctly
+# if not, build init block
+
+def parse_file(filepath):
+	blockchain = []
+
+	# unpacks init block
+	with open(filepath, 'rb') as f:
+		info = f.read(90)
+		unpacked = struct.unpack('32s d 16s I 12s I 14s', info)
+
+		init_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1], unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
+						   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5], unpacked[6].decode("utf-8").rstrip('\x00'))
+
+		blockchain.append(init_block)
+
+		# this works for checking following blocks, make it less ugly
+		while f.peek(76):
+			lookahead = f.peek(76)
+			next_data_length = lookahead[72:76]
+			next_data_length = struct.unpack('I', next_data_length)[0]
+			print("the length is: " + str(next_data_length))
+
+			lookahead = f.read(76+next_data_length)
+			unpacked = struct.unpack(f'32s d 16s I 12s I {next_data_length}s', lookahead)
+			new_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1], unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
+						   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5], unpacked[6].decode("utf-8").rstrip('\x00'))
+
+			blockchain.append(new_block)
+
+		return blockchain
+
+
+def pack_bytes(cur, data_length):
+	return_bytes = struct.pack(f'32s d 16s I 12s I {data_length}s', bytes(cur.previous_hash, 'utf-8'), cur.timestamp,
+							   bytes(cur.case_id, 'utf-8'), cur.evidence_id, bytes(cur.state, 'utf-8'), cur.data_length,
+							   bytes(cur.data, 'utf-8'))
+	return return_bytes
 
 
 def build_from_file():
