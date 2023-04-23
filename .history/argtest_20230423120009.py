@@ -38,18 +38,17 @@ remove_parser.add_argument('-i', '--item_id', type=int, required=True, help='ID 
 remove_parser.add_argument('-y', '--why', required=True, help='Reason for the removal of the evidence item')
 remove_parser.add_argument('-o', '--owner', help=': Information about the lawful owner to whom the evidence was released')
 
+
 # subparser for 'init' command
 init_parser = subparsers.add_parser('init', help='init Sanity check. Only starts up and checks for the initial block')
+
 
 # subparser for 'verify' command
 verify_parser = subparsers.add_parser('verify', help='Parse the blockchain and validate all entries')
 
 args = parser.parse_args()
 
-
 if args.command == "add":
-    # ex: bchoc add -c case_id -i item_id [-i item_id ...]
-    
     # -i can have multiple uses so its output is a list i believe
     print()
 
@@ -57,9 +56,6 @@ elif args.command == "checkout":
     print()
 
 elif args.command == "checkin":
-    print()
-
-elif args.command == "log":
     print("log")
 
 
@@ -96,10 +92,10 @@ elif args.command == "remove":
         # ex: bchoc remove -i 6 -y idk
         print()
 
-elif args.command == "init":
+if args.command == "init":
     print()
 
-elif args.command == "verify":
+if args.command == "verify":
     print()
 
 else:

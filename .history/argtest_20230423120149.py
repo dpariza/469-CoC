@@ -48,8 +48,6 @@ args = parser.parse_args()
 
 
 if args.command == "add":
-    # ex: bchoc add -c case_id -i item_id [-i item_id ...]
-    
     # -i can have multiple uses so its output is a list i believe
     print()
 
@@ -100,7 +98,7 @@ elif args.command == "init":
     print()
 
 elif args.command == "verify":
-    print()
+    print("yo")
 
 else:
     #print(f"Unknown command: {args.command}")
