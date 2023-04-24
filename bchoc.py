@@ -6,12 +6,13 @@ import struct
 import hashlib
 import time
 import argtest
+from datetime import datetime
 
 
 class Block:
 
-	def __init__(self, previous_hash="ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", timestamp=0.0,
-				 case_id="5ed4bad2e2d111edb5ea0242ac120002", evidence_id=0, state="INITIAL", data_length=14,
+	def __init__(self, previous_hash="0000000000000000000000000000000000000000000000000000000000000000", timestamp=0.0,
+				 case_id="00000000000000000000000000000000", evidence_id=0, state="INITIAL", data_length=14,
 				 data="Initial block"):
 		self.previous_hash = previous_hash
 		self.timestamp = timestamp
@@ -24,7 +25,7 @@ class Block:
 
 	def __str__(self):
 		return 'Previous Hash: {}\nTimestamp: {}\nCase ID: {}\nEvidence ID: {}\nState: {}\nData Length: {}\nData: {}'.format(
-			self.previous_hash, self.timestamp, self.case_id, self.evidence_id, self.state, self.data_length, self.data)
+			self.previous_hash, datetime.fromtimestamp(self.timestamp).isoformat(), self.case_id, self.evidence_id, self.state, self.data_length, self.data)
 
 
 def load_file():
@@ -64,6 +65,7 @@ def init():
 		print("Blockchain file found with INITIAL block.")
 		for block in blockchain:
 			print(block)
+			print()
 		return blockchain
 
 
@@ -95,9 +97,13 @@ def unpack_bytes(unpack_this, data_length):
 
 	hash_unpacked = str(hex(int.from_bytes(unpacked[0], "little")))
 	hash_unpacked = hash_unpacked[2:]
+	if hash_unpacked == '0':
+		hash_unpacked = '0000000000000000000000000000000000000000000000000000000000000000'
 
 	case_unpacked = str(hex(int.from_bytes(unpacked[2], "little")))
 	case_unpacked = case_unpacked[2:]
+	if case_unpacked == '0':
+		case_unpacked = '00000000000000000000000000000000'
 
 	return_block = Block(hash_unpacked, unpacked[1],
 						 case_unpacked, unpacked[3],
@@ -129,17 +135,35 @@ def pack_bytes(cur):
 	return return_bytes
 
 
-def add(args):
-	pass
+def new_block(chain, block_to_add):
+	# do all the checks for appending the chain here
+	chain.append(block_to_add)
+	print(block_to_add)
 
-def handle_input():
+def add(chain, args):
+	previous_hash = calculate_hash()
+	timestamp = round(time.time(), 6)
+	case_id = args.case_id
+	evidence_id = args.item_id[0]
+	state = 'CHECKEDIN'
+	data_length = 0
+	data = ''
+
+	block_to_add = Block(previous_hash, timestamp, case_id, evidence_id, state, data_length, data)
+	block_to_add.new_item = True
+	new_block(chain, block_to_add)
+
+def calculate_hash():
+	return '0000000000000000000000000000000000000000000000000000000000000000'
+
+def handle_input(chain):
 	args = argtest.process_commands()
 
 	if args.command == "add":
 		# ex: bchoc add -c case_id -i item_id [-i item_id ...]
 		# print("added!")
-		add(args)
-		pass
+		add(chain, args)
+
 
 	elif args.command == "checkout":
 		pass
@@ -192,9 +216,9 @@ def handle_input():
 
 
 def main():
-	handle_input()
 	chain = init()
-	#write_file(chain)
+	handle_input(chain)
+	write_file(chain)
 
 
 if __name__ == "__main__":
