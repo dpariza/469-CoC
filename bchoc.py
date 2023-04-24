@@ -124,7 +124,7 @@ def handle_input():
 
 	if args.command == "add":
 		# ex: bchoc add -c case_id -i item_id [-i item_id ...]
-		print("added")
+		print("added!")
 		add(args)
 		pass
 
