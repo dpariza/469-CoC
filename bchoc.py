@@ -3,6 +3,7 @@
 import os
 import sys
 import struct
+import hashlib
 import time
 
 
@@ -66,26 +67,19 @@ def parse_file(filepath):
 	# unpacks init block
 	with open(filepath, 'rb') as f:
 		info = f.read(90)
-		unpacked = struct.unpack('32s d 16s I 12s I 14s', info)
 
-		init_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1], unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
-						   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5], unpacked[6].decode("utf-8").rstrip('\x00'))
-
-		blockchain.append(init_block)
+		# unpacks init block, data length preset as 14
+		blockchain.append(unpack_bytes(info, 14))
 
 		# this works for checking following blocks, make it less ugly
-		while f.peek(76):
-			lookahead = f.peek(76)
-			next_data_length = lookahead[72:76]
+		while continues := f.peek(76):
+			next_data_length = continues[72:76]
 			next_data_length = struct.unpack('I', next_data_length)[0]
 			print("the length is: " + str(next_data_length))
 
-			lookahead = f.read(76+next_data_length)
-			unpacked = struct.unpack(f'32s d 16s I 12s I {next_data_length}s', lookahead)
-			new_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1], unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
-						   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5], unpacked[6].decode("utf-8").rstrip('\x00'))
+			lookahead = f.read(76 + next_data_length)
 
-			blockchain.append(new_block)
+			blockchain.append(unpack_bytes(lookahead, next_data_length))
 
 		return blockchain
 
@@ -97,8 +91,15 @@ def pack_bytes(cur, data_length):
 	return return_bytes
 
 
-def build_from_file():
-	pass
+def unpack_bytes(unpack_this, data_length):
+	unpacked = struct.unpack(f'32s d 16s I 12s I {data_length}s', unpack_this)
+
+	return_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1],
+					   unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
+					   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5],
+					   unpacked[6].decode("utf-8").rstrip('\x00'))
+
+	return return_block
 
 
 def handle_input():
