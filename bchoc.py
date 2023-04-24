@@ -5,6 +5,7 @@ import sys
 import struct
 import hashlib
 import time
+import argtest
 
 
 class Block:
@@ -18,6 +19,7 @@ class Block:
 		self.state = state
 		self.data_length = data_length
 		self.data = data
+		self.new_item = False
 
 	def __str__(self):
 		return 'Previous Hash: {}\nTimestamp: {}\nCase ID: {}\nEvidence ID: {}\nState: {}\nData Length: {}\nData: {}'.format(
@@ -48,18 +50,19 @@ def init():
 
 		# If file is empty, init block is created and written to file
 		init_block = Block()
-		init_bytes = pack_bytes(init_block, 14)
+		init_bytes = pack_bytes(init_block)
 
 		with open(filepath, 'wb') as f:
 			f.write(init_bytes)
 
+		print("Blockchain file not found. Created INITIAL block.")
+
 	else:
 
 		blockchain = parse_file(filepath)
+		print("Blockchain file found with INITIAL block.")
+		return blockchain
 
-
-# check whether init block unpacks correctly
-# if not, build init block
 
 def parse_file(filepath):
 	blockchain = []
@@ -84,30 +87,101 @@ def parse_file(filepath):
 		return blockchain
 
 
-def pack_bytes(cur, data_length):
-	return_bytes = struct.pack(f'32s d 16s I 12s I {data_length}s', bytes(cur.previous_hash, 'utf-8'), cur.timestamp,
-							   bytes(cur.case_id, 'utf-8'), cur.evidence_id, bytes(cur.state, 'utf-8'), cur.data_length,
-							   bytes(cur.data, 'utf-8'))
-	return return_bytes
-
-
 def unpack_bytes(unpack_this, data_length):
 	unpacked = struct.unpack(f'32s d 16s I 12s I {data_length}s', unpack_this)
 
 	return_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1],
-					   unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
-					   unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5],
-					   unpacked[6].decode("utf-8").rstrip('\x00'))
+						 unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
+						 unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5],
+						 unpacked[6].decode("utf-8").rstrip('\x00'))
 
 	return return_block
 
 
+def write_file(blockchain):
+	filepath = load_file()
+
+	with open(filepath, 'ab') as f:
+		for block in blockchain:
+			if block.new_item:
+				write_bytes = pack_bytes(block)
+				f.write(write_bytes)
+
+
+def pack_bytes(cur):
+	return_bytes = struct.pack(f'32s d 16s I 12s I {cur.data_length}s', bytes(cur.previous_hash, 'utf-8'),
+							   cur.timestamp, bytes(cur.case_id, 'utf-8'), cur.evidence_id, bytes(cur.state, 'utf-8'),
+							   cur.data_length, bytes(cur.data, 'utf-8'))
+	return return_bytes
+
+
+def add(args):
+	print(args.case_id)
+	print(args.item_id)
+
 def handle_input():
-	pass
+	args = argtest.process_commands()
+
+	if args.command == "add":
+		# ex: bchoc add -c case_id -i item_id [-i item_id ...]
+		print("added")
+		add(args)
+		pass
+
+	elif args.command == "checkout":
+		pass
+
+	elif args.command == "checkin":
+		pass
+
+	elif args.command == "log":
+		print("log")
+
+		if args.reverse and args.num_entries:
+			# ex: bchoc log -r -n 5 -c 66 -i 2
+			print(f'Reverse order of {args.num_entries} entries')
+		# code here for reverse order of num_entries
+
+		elif args.reverse and not args.num_entries:
+			# ex: bchoc log -r -c 66 -i 2
+			print('Reverse order of all entries')
+		# code here for reverse order of all entries
+
+		elif not args.reverse and args.num_entries:
+			# ex: bchoc log -n 5 -c 66 -i 2
+			print(f'First {args.num_entries} entries')
+		# code here for first num_entries
+
+		else:
+			# ex: bchoc log -c 66 -i 2
+			# neither reverse and all entries
+			print()
+
+	elif args.command == "remove":
+		print("remove")
+
+		if args.owner:
+			# ex: bchoc remove -i 6 -y idk -o Chris
+			print()
+		else:
+			# ex: bchoc remove -i 6 -y idk
+			print()
+
+	elif args.command == "init":
+		print()
+
+	elif args.command == "verify":
+		print()
+
+	else:
+		print(f"Unknown command: {args.command}")
+		sys.exit(1)
 
 
 def main():
-	init()
+	handle_input()
+	chain = init()
+	write_file(chain)
 
 
 if __name__ == "__main__":
