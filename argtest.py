@@ -1,5 +1,6 @@
 import argparse
 import sys
+import struct
 
 
 #print("Usage: bchoc [log | remove] [-r] [-n num_entries] [-c case_id] [-i item_id]") !
@@ -46,7 +47,3 @@ def process_commands():
 
     args = parser.parse_args()
     return args
-
-
-
-

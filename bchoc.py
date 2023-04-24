@@ -10,8 +10,9 @@ import argtest
 
 class Block:
 
-	def __init__(self, previous_hash="00000000000000000000000000000000", timestamp=0.0, case_id="0000000000000000",
-				 evidence_id=0, state="INITIAL", data_length=14, data="Initial block"):
+	def __init__(self, previous_hash="ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", timestamp=0.0,
+				 case_id="5ed4bad2e2d111edb5ea0242ac120002", evidence_id=0, state="INITIAL", data_length=14,
+				 data="Initial block"):
 		self.previous_hash = previous_hash
 		self.timestamp = timestamp
 		self.case_id = case_id
@@ -61,6 +62,8 @@ def init():
 
 		blockchain = parse_file(filepath)
 		print("Blockchain file found with INITIAL block.")
+		for block in blockchain:
+			print(block)
 		return blockchain
 
 
@@ -90,8 +93,14 @@ def parse_file(filepath):
 def unpack_bytes(unpack_this, data_length):
 	unpacked = struct.unpack(f'32s d 16s I 12s I {data_length}s', unpack_this)
 
-	return_block = Block(unpacked[0].decode("utf-8").rstrip('\x00'), unpacked[1],
-						 unpacked[2].decode("utf-8").rstrip('\x00'), unpacked[3],
+	hash_unpacked = str(hex(int.from_bytes(unpacked[0], "little")))
+	hash_unpacked = hash_unpacked[2:]
+
+	case_unpacked = str(hex(int.from_bytes(unpacked[2], "little")))
+	case_unpacked = case_unpacked[2:]
+
+	return_block = Block(hash_unpacked, unpacked[1],
+						 case_unpacked, unpacked[3],
 						 unpacked[4].decode("utf-8").rstrip('\x00'), unpacked[5],
 						 unpacked[6].decode("utf-8").rstrip('\x00'))
 
@@ -109,22 +118,26 @@ def write_file(blockchain):
 
 
 def pack_bytes(cur):
-	return_bytes = struct.pack(f'32s d 16s I 12s I {cur.data_length}s', bytes(cur.previous_hash, 'utf-8'),
-							   cur.timestamp, bytes(cur.case_id, 'utf-8'), cur.evidence_id, bytes(cur.state, 'utf-8'),
+	hash_as_int = int(cur.previous_hash, 16)
+	hash_as_int = hash_as_int.to_bytes(32, "little")
+	case_as_int = int(cur.case_id, 16)
+	case_as_int = case_as_int.to_bytes(16, "little")
+
+	return_bytes = struct.pack(f'32s d 16s I 12s I {cur.data_length}s', hash_as_int,
+							   cur.timestamp, case_as_int, cur.evidence_id, bytes(cur.state, 'utf-8'),
 							   cur.data_length, bytes(cur.data, 'utf-8'))
 	return return_bytes
 
 
 def add(args):
-	print(args.case_id)
-	print(args.item_id)
+	pass
 
 def handle_input():
 	args = argtest.process_commands()
 
 	if args.command == "add":
 		# ex: bchoc add -c case_id -i item_id [-i item_id ...]
-		print("added!")
+		# print("added!")
 		add(args)
 		pass
 
@@ -181,7 +194,7 @@ def handle_input():
 def main():
 	handle_input()
 	chain = init()
-	write_file(chain)
+	#write_file(chain)
 
 
 if __name__ == "__main__":
