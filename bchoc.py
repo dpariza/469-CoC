@@ -25,6 +25,7 @@ class Block:
 		self.data_length = data_length
 		self.data = data
 		self.new_item = False
+		self.filepath = ''
 
 	def __str__(self):
 		return 'Previous Hash: {}\nTimestamp: {}\nCase ID: {}\nEvidence ID: {}\nState: {}\nData Length: {}\nData: {}'.format(
@@ -37,19 +38,16 @@ def get_time():
 
 
 def load_file():
-	working_dir = os.getcwd()
 	env_path = os.environ.get("BCHOC_FILE_PATH")
 
-	if env_path is not None and os.path.isfile(env_path):
-		filepath_to_chain = os.path.join(working_dir, env_path)
-	else:
-		filepath_to_chain = "bchoc_data"
+	try:
+		with open(env_path, 'rb'):
+			filepath = env_path
+	except:
+		with open(env_path, 'wb'):
+			pass
 
-		if not os.path.isfile(filepath_to_chain):
-			with open(filepath_to_chain, 'w'):
-				pass
-
-	return filepath_to_chain
+	return env_path
 
 
 def unpack_bytes(unpack_this, data_length):
@@ -133,14 +131,14 @@ def setup_blockchain():
 			f.write(init_bytes)
 
 		# False flag denotes that initial block was created and added to the new file
-		return chain, False
+		return chain, False, filepath
 
 	else:
 
 		blockchain = parse_file(filepath)
 
 		# True flag denotes successful load of existing init block
-		return blockchain, True
+		return blockchain, True, filepath
 
 
 class Blockchain:
@@ -149,14 +147,17 @@ class Blockchain:
 		setup = setup_blockchain()
 		self.chain = setup[0]
 		self.init_flag = setup[1]
+		self.filepath = setup[2]
 		self.error_state = False
 		self.error_message = 'CLEAN'
 		self.args = process_commands()
+		if self.args.command == "add" or self.args.command == "log":
+			if self.args.case_id:
+				self.args.case_id = self.args.case_id.replace('-', '')
 
 	def write_file(self):
-		filepath = load_file()
 
-		with open(filepath, 'ab') as f:
+		with open(self.filepath, 'ab') as f:
 			for block in self.chain:
 				if block.new_item:
 					write_bytes = pack_bytes(block)
@@ -199,12 +200,15 @@ class Blockchain:
 			print()
 
 		elif arg.command == 'checkout':
+
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked out item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
 			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
 			print()
+
 		elif arg.command == 'checkin':
+
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked in item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
@@ -242,7 +246,8 @@ class Blockchain:
 
 	def calculate_hash(self):
 		prev = self.chain[-1]
-		raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(prev.evidence_id) + prev.state + str(prev.data_length) + prev.data
+		raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(
+			prev.evidence_id) + prev.state + str(prev.data_length) + prev.data
 		raw_hashing = raw_hashing.encode('utf-8')
 
 		prev_hash = hashlib.sha256(raw_hashing).digest()
@@ -254,11 +259,9 @@ class Blockchain:
 		# do all the checks for appending the chain here!
 		if block_to_add.state == "CHECKEDIN" or block_to_add.state == "CHECKEDOUT":
 			for block in self.chain:
-				#print(block.case_id)
-				#print(block_to_add.case_id)
-				if block.case_id == block_to_add.case_id and block.evidence_id == block_to_add.evidence_id and (block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED'):
+				if block.evidence_id == block_to_add.evidence_id and (
+						block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED'):
 					self.end("ERROR: added item after it was removed")
-
 
 		block_to_add.new_item = True
 		self.chain.append(block_to_add)
@@ -267,12 +270,25 @@ class Blockchain:
 		arg = self.args
 
 		for item_id in arg.item_id:
-			block_to_add = Block(self.calculate_hash(), get_time(), arg.case_id.replace('-', ''), item_id, 'CHECKEDIN', 0, '')
+			block_to_add = Block(self.calculate_hash(), get_time(), arg.case_id, item_id, 'CHECKEDIN',
+								 0, '')
+
+			# located = None
+			# iterator = copy.copy(self.chain)
+			# for block in reversed(iterator):
+			# 	if block.evidence_id == block_to_add.evidence_id:
+			# 		located = block
+			# 		break
+			#
+			# if located.state == block_to_add.state:
+			# 	self.end("ERROR: duplicate entry to chain detected")
+
 			self.new_block(block_to_add)
 			self.log_printer(block_to_add)
 
 	def checkout(self, evidence_id):
 		located = None
+		# print()
 
 		for block in self.chain:
 			if block.evidence_id == evidence_id:
@@ -340,11 +356,9 @@ class Blockchain:
 		for i in range(0, len(self.chain), 1):
 			print(str(i) + ": " + self.chain[i].previous_hash)
 
-		print()
 		par = self.chain[0]
 		parent_content = par.previous_hash + str(par.timestamp) + par.case_id + str(par.evidence_id) + par.state + str(
 			par.data_length) + par.data
-		print(parent_content)
 
 	def parents_found(self):
 		pass
@@ -358,12 +372,11 @@ class Blockchain:
 					if block.previous_hash == block2.previous_hash:
 						self.end("ERROR: Duplicate parents detected")
 
-
 	def check_after_remove(self):
 		iterator = 0
 		for block in self.chain:
 			if block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED':
-				for i in range(iterator, len(self.chain)-1, 1):
+				for i in range(iterator, len(self.chain) - 1, 1):
 					if self.chain[i].case_id == block.case_id and self.chain[i].evidence_id == block.evidence_id and \
 							(self.chain[i].state == 'CHECKEDIN' or self.chain[i].state == 'CHECKEDOUT'):
 						self.end("ERROR: item was checked in/out after removal")
@@ -422,50 +435,66 @@ def main():
 	driver.run_command()
 	driver.write_file()
 
+
+
+
 def process_commands():
-    # parse bchoc
-    parser = argparse.ArgumentParser(description='Process bchoc commands')
-    #parser.add_argument('bchoc', help='Main command')
+	# parse bchoc
+	parser = argparse.ArgumentParser(description='Process bchoc commands')
+	# parser.add_argument('bchoc', help='Main command')
 
-    # create subparsers for 'log' and 'remove' commands
-    subparsers = parser.add_subparsers(dest='command')
+	# create subparsers for 'log' and 'remove' commands
+	subparsers = parser.add_subparsers(dest='command')
 
-    # subparser for 'add' command
-    add_parser = subparsers.add_parser('add', help='Add a new evidence item to the blockchain and associate it with the given case identifier')
-    add_parser.add_argument('-c', '--case_id', type=str, help='Specifies the case identifier that the evidence is associated with')
-    add_parser.add_argument('-i', '--item_id', action='append', type=int, help=' Specifies the evidence item’s identifier')
+	# subparser for 'add' command
+	add_parser = subparsers.add_parser('add',
+									   help='Add a new evidence item to the blockchain and associate it with the given case identifier')
+	add_parser.add_argument('-c', '--case_id', type=str,
+							help='Specifies the case identifier that the evidence is associated with')
+	add_parser.add_argument('-i', '--item_id', action='append', type=int,
+							help=' Specifies the evidence item’s identifier')
 
-    # subparser for 'checkout' command
-    checkout_parser = subparsers.add_parser('checkout', help='Add a new checkout entry to the chain of custody for the given evidence item')
-    checkout_parser.add_argument('-i', '--item_id', required=True, type=int, help=' Specifies the evidence item’s identifier')
+	# subparser for 'checkout' command
+	checkout_parser = subparsers.add_parser('checkout',
+											help='Add a new checkout entry to the chain of custody for the given evidence item')
+	checkout_parser.add_argument('-i', '--item_id', required=True, type=int,
+								 help=' Specifies the evidence item’s identifier')
 
-    # subparser for 'checkin' command
-    checkin_parser = subparsers.add_parser('checkin', help=' Add a new checkin entry to the chain of custody for the given evidence item')
-    checkin_parser.add_argument('-i', '--item_id', required=True, type=int, help=' Specifies the evidence item’s identifier!')
+	# subparser for 'checkin' command
+	checkin_parser = subparsers.add_parser('checkin',
+										   help=' Add a new checkin entry to the chain of custody for the given evidence item')
+	checkin_parser.add_argument('-i', '--item_id', required=True, type=int,
+								help=' Specifies the evidence item’s identifier!')
 
-    # subparser for 'log' command
-    log_parser = subparsers.add_parser('log', help='Display the blockchain entries giving the oldest first (unless -r is given)')
-    log_parser.add_argument('-r', '--reverse', action='store_true', help='Reverses the order of the block entries to show the most recent entries first')
-    log_parser.add_argument('-n', '--num_entries', type=int, help='When used with log, shows num_entries number of block entries')
-    log_parser.add_argument('-c', '--case_id', type=str, help='Specifies the case identifier that the evidence is associated with')
-    log_parser.add_argument('-i', '--item_id', type=int, help=' Specifies the evidence item’s identifier')
+	# subparser for 'log' command
+	log_parser = subparsers.add_parser('log',
+									   help='Display the blockchain entries giving the oldest first (unless -r is given)')
+	log_parser.add_argument('-r', '--reverse', action='store_true',
+							help='Reverses the order of the block entries to show the most recent entries first')
+	log_parser.add_argument('-n', '--num_entries', type=int,
+							help='When used with log, shows num_entries number of block entries')
+	log_parser.add_argument('-c', '--case_id', type=str,
+							help='Specifies the case identifier that the evidence is associated with')
+	log_parser.add_argument('-i', '--item_id', type=int, help=' Specifies the evidence item’s identifier')
 
-    # subparser for 'remove' command
-    remove_parser = subparsers.add_parser('remove', help='Prevents any further action from being taken on the evidence item specified')
-    remove_parser.add_argument('-i', '--item_id', type=int, required=True, help='ID of block to remove')
-    remove_parser.add_argument('-y', '--why', required=True, help='Reason for the removal of the evidence item')
-    remove_parser.add_argument('-o', '--owner', help=': Information about the lawful owner to whom the evidence was released')
+	# subparser for 'remove' command
+	remove_parser = subparsers.add_parser('remove',
+										  help='Prevents any further action from being taken on the evidence item specified')
+	remove_parser.add_argument('-i', '--item_id', type=int, required=True, help='ID of block to remove')
+	remove_parser.add_argument('-y', '--why', required=True, help='Reason for the removal of the evidence item')
+	remove_parser.add_argument('-o', '--owner',
+							   help=': Information about the lawful owner to whom the evidence was released')
 
-    # subparser for 'init' command
-    init_parser = subparsers.add_parser('init', help='init Sanity check. Only starts up and checks for the initial block')
+	# subparser for 'init' command
+	init_parser = subparsers.add_parser('init',
+										help='init Sanity check. Only starts up and checks for the initial block')
 
-    # subparser for 'verify' command
-    verify_parser = subparsers.add_parser('verify', help='Parse the blockchain and validate all entries')
+	# subparser for 'verify' command
+	verify_parser = subparsers.add_parser('verify', help='Parse the blockchain and validate all entries')
 
-    args = parser.parse_args()
-    return args
+	args = parser.parse_args()
+	return args
+
 
 if __name__ == "__main__":
 	main()
-
-
