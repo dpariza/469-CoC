@@ -159,6 +159,42 @@ class Blockchain:
 		else:
 			print("Blockchain file not found. Created INITIAL block.")
 
+	def log_printer(self, block):
+		print('Case: ' + str(uuid.UUID(block.case_id)))
+		print('Item: ' + str(block.evidence_id))
+		print('Action: ' + block.state)
+		print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
+		print()
+
+	def log(self):
+		arg = self.args
+		iterator = copy.copy(self.chain)
+		count = 0
+		maximum = 100000000
+
+		if arg.reverse:
+			iterator.reverse()
+
+		if arg.num_entries:
+			maximum = arg.num_entries
+
+		if arg.item_id:
+			for block in iterator:
+				if block.evidence_id == arg.item_id and count < maximum:
+					self.log_printer(block)
+					count = count + 1
+
+		elif arg.case_id:
+			for block in iterator:
+				if block.case_id == arg.case_id and count < maximum:
+					self.log_printer(block)
+					count = count + 1
+		else:
+			for block in iterator:
+				if count < maximum:
+					self.log_printer(block)
+					count = count + 1
+
 	def calculate_hash(self):
 		prev = self.chain[-1]
 		raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(prev.evidence_id) + prev.state + \
@@ -198,8 +234,22 @@ class Blockchain:
 		else:
 			print("ERROR: item does not exist")
 
-	def checkin(self):
-		pass
+	def checkin(self, evidence_id):
+		located = None
+
+		for block in self.chain:
+			if block.evidence_id == evidence_id:
+				located = block
+
+		if located is not None:
+			if located.state != "CHECKEDIN":
+				out_block = Block(self.calculate_hash(), get_time(), located.case_id, evidence_id, 'CHECKEDIN', 0, '')
+
+				self.new_block(out_block)
+			else:
+				print("ERROR: This item is already checked in!!!")
+		else:
+			print("ERROR: item does not exist")
 
 	def run_command(self):
 		arg = self.args
@@ -209,15 +259,16 @@ class Blockchain:
 			self.init()
 
 		elif command == "log":
-			for block in self.chain:
-				print(block)
-				print()
+			self.log()
 
 		elif command == "add":
 			self.add(arg.case_id, arg.item_id[0])
 
 		elif command == "checkout":
 			self.checkout(arg.item_id)
+
+		elif command == "checkin":
+			self.checkin(arg.item_id)
 
 		else:
 			print(f"Unknown command: {self.args.command}")
