@@ -7,11 +7,13 @@ import hashlib
 import time
 import argtest
 from datetime import datetime
+import uuid
 
 
 class Block:
 
-	def __init__(self, previous_hash="0000000000000000000000000000000000000000000000000000000000000000", timestamp=0.0,
+	def __init__(self, previous_hash="0000000000000000000000000000000000000000000000000000000000000000",
+				 timestamp=round(time.time(), 6),
 				 case_id="00000000000000000000000000000000", evidence_id=0, state="INITIAL", data_length=14,
 				 data="Initial block"):
 		self.previous_hash = previous_hash
@@ -25,7 +27,8 @@ class Block:
 
 	def __str__(self):
 		return 'Previous Hash: {}\nTimestamp: {}\nCase ID: {}\nEvidence ID: {}\nState: {}\nData Length: {}\nData: {}'.format(
-			self.previous_hash, datetime.fromtimestamp(self.timestamp).isoformat(), self.case_id, self.evidence_id, self.state, self.data_length, self.data)
+			self.previous_hash, datetime.fromtimestamp(self.timestamp).isoformat() + 'Z', uuid.UUID(self.case_id),
+			self.evidence_id, self.state, self.data_length, self.data)
 
 
 def load_file():
@@ -39,34 +42,36 @@ def load_file():
 
 		if not os.path.isfile(filepath_to_chain):
 			with open(filepath_to_chain, 'w'):
-				print("file created")
 				pass
 
 	return filepath_to_chain
 
 
-def init():
+def setup_blockchain():
 	filepath = load_file()
+
+	blockchain = []
 
 	if os.stat(filepath).st_size == 0:
 
 		# If file is empty, init block is created and written to file
 		init_block = Block()
+		blockchain.append(init_block)
+
 		init_bytes = pack_bytes(init_block)
 
 		with open(filepath, 'wb') as f:
 			f.write(init_bytes)
 
-		print("Blockchain file not found. Created INITIAL block.")
+		# False flag denotes that initial block was created and added to the new file
+		return blockchain, False
 
 	else:
 
 		blockchain = parse_file(filepath)
-		print("Blockchain file found with INITIAL block.")
-		for block in blockchain:
-			print(block)
-			print()
-		return blockchain
+
+		# True flag denotes successful load of existing init block
+		return blockchain, True
 
 
 def parse_file(filepath):
@@ -83,7 +88,6 @@ def parse_file(filepath):
 		while continues := f.peek(76):
 			next_data_length = continues[72:76]
 			next_data_length = struct.unpack('I', next_data_length)[0]
-			print("the length is: " + str(next_data_length))
 
 			lookahead = f.read(76 + next_data_length)
 
@@ -138,10 +142,12 @@ def pack_bytes(cur):
 def new_block(chain, block_to_add):
 	# do all the checks for appending the chain here
 	chain.append(block_to_add)
-	print(block_to_add)
+
+
+# print(block_to_add)
 
 def add(chain, args):
-	previous_hash = calculate_hash()
+	previous_hash = calculate_hash(chain)
 	timestamp = round(time.time(), 6)
 	case_id = args.case_id
 	evidence_id = args.item_id[0]
@@ -153,10 +159,22 @@ def add(chain, args):
 	block_to_add.new_item = True
 	new_block(chain, block_to_add)
 
-def calculate_hash():
-	return '0000000000000000000000000000000000000000000000000000000000000000'
 
-def handle_input(chain):
+def calculate_hash(chain):
+	prev = chain[-1]
+	raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(prev.evidence_id) + prev.state + str(
+		prev.data_length) + prev.data
+	raw_hashing = raw_hashing.encode('utf-8')
+	prev_hash = hashlib.sha256(raw_hashing).digest()
+	prev_hash = str(hex(int.from_bytes(prev_hash, "little")))
+	return prev_hash
+
+
+def handle_input():
+	setup_result = setup_blockchain()
+	chain = setup_result[0]
+	init_flag = setup_result[1]
+
 	args = argtest.process_commands()
 
 	if args.command == "add":
@@ -172,27 +190,10 @@ def handle_input(chain):
 		pass
 
 	elif args.command == "log":
-		print("log")
-
-		if args.reverse and args.num_entries:
-			# ex: bchoc log -r -n 5 -c 66 -i 2
-			print(f'Reverse order of {args.num_entries} entries')
-		# code here for reverse order of num_entries
-
-		elif args.reverse and not args.num_entries:
-			# ex: bchoc log -r -c 66 -i 2
-			print('Reverse order of all entries')
-		# code here for reverse order of all entries
-
-		elif not args.reverse and args.num_entries:
-			# ex: bchoc log -n 5 -c 66 -i 2
-			print(f'First {args.num_entries} entries')
-		# code here for first num_entries
-
-		else:
-			# ex: bchoc log -c 66 -i 2
-			# neither reverse and all entries
+		for block in chain:
+			print(block)
 			print()
+
 
 	elif args.command == "remove":
 		print("remove")
@@ -205,7 +206,10 @@ def handle_input(chain):
 			print()
 
 	elif args.command == "init":
-		print()
+		if init_flag:
+			print("Blockchain file found with INITIAL block.")
+		else:
+			print("Blockchain file not found. Created INITIAL block.")
 
 	elif args.command == "verify":
 		print()
@@ -214,10 +218,11 @@ def handle_input(chain):
 		print(f"Unknown command: {args.command}")
 		sys.exit(1)
 
+	return chain
+
 
 def main():
-	chain = init()
-	handle_input(chain)
+	chain = handle_input()
 	write_file(chain)
 
 

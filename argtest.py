@@ -30,8 +30,8 @@ def process_commands():
     log_parser = subparsers.add_parser('log', help='Display the blockchain entries giving the oldest first (unless -r is given)')
     log_parser.add_argument('-r', '--reverse', action='store_true', help='Reverses the order of the block entries to show the most recent entries first')
     log_parser.add_argument('-n', '--num_entries', type=int, help='When used with log, shows num_entries number of block entries')
-    log_parser.add_argument('-c', '--case_id', required=True, type=str, help='Specifies the case identifier that the evidence is associated with')
-    log_parser.add_argument('-i', '--item_id', required=True, type=int, help=' Specifies the evidence item’s identifier')
+    log_parser.add_argument('-c', '--case_id', type=str, help='Specifies the case identifier that the evidence is associated with')
+    log_parser.add_argument('-i', '--item_id', type=int, help=' Specifies the evidence item’s identifier')
 
     # subparser for 'remove' command
     remove_parser = subparsers.add_parser('remove', help='Prevents any further action from being taken on the evidence item specified')
