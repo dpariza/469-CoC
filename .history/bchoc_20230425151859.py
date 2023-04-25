@@ -173,6 +173,7 @@ class Blockchain:
 		arg = self.args
 
 		if arg.command == 'log':
+			print("hhhhhhh" + block.case_id)
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Item: ' + str(block.evidence_id))
 			print('Action: ' + block.state)
@@ -199,7 +200,7 @@ class Blockchain:
 			print()
 
 		elif arg.command == 'checkout':
-			print("hhhhhhh" + block.case_id)
+
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked out item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)

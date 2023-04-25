@@ -173,6 +173,7 @@ class Blockchain:
 		arg = self.args
 
 		if arg.command == 'log':
+
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Item: ' + str(block.evidence_id))
 			print('Action: ' + block.state)
@@ -199,7 +200,7 @@ class Blockchain:
 			print()
 
 		elif arg.command == 'checkout':
-			print("hhhhhhh" + block.case_id)
+
 			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked out item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
@@ -272,15 +273,15 @@ class Blockchain:
 			block_to_add = Block(self.calculate_hash(), get_time(), arg.case_id, item_id, 'CHECKEDIN',
 								 0, '')
 
-			# located = None
-			# iterator = copy.copy(self.chain)
-			# for block in reversed(iterator):
-			# 	if block.evidence_id == block_to_add.evidence_id:
-			# 		located = block
-			# 		break
-			#
-			# if located.state == block_to_add.state:
-			# 	self.end("ERROR: duplicate entry to chain detected")
+			located = None
+			iterator = copy.copy(self.chain)
+			for block in reversed(iterator):
+				if block.evidence_id == block_to_add.evidence_id:
+					located = block
+					break
+			
+			if located.state == block_to_add.state:
+				self.end("ERROR: duplicate entry to chain detected")
 
 			self.new_block(block_to_add)
 			self.log_printer(block_to_add)
