@@ -170,6 +170,13 @@ class Blockchain:
 			print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
 			print()
 
+		elif arg.command == 'add':
+			print('Case: ' + str(uuid.UUID(block.case_id)))
+			print('Added item: ' + str(block.evidence_id))
+			print('Status: ' + block.state)
+			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
+			print()
+
 		elif arg.command == 'remove':
 
 			print('Case: ' + str(uuid.UUID(block.case_id)))
@@ -179,7 +186,7 @@ class Blockchain:
 			if arg.why == 'RELEASED':
 				print('Owner info: ' + arg.owner)
 
-			print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
+			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
 			print()
 
 	def log(self):
@@ -227,11 +234,13 @@ class Blockchain:
 		block_to_add.new_item = True
 		self.chain.append(block_to_add)
 
-	def add(self, case_id, evidence_id):
+	def add(self):
+		arg = self.args
 
-		block_to_add = Block(self.calculate_hash(), get_time(), case_id, evidence_id, 'CHECKEDIN', 0, '')
-
-		self.new_block(block_to_add)
+		for item_id in arg.item_id:
+			block_to_add = Block(self.calculate_hash(), get_time(), arg.case_id, item_id, 'CHECKEDIN', 0, '')
+			self.new_block(block_to_add)
+			self.log_printer(block_to_add)
 
 	def checkout(self, evidence_id):
 		located = None
@@ -307,7 +316,7 @@ class Blockchain:
 			self.log()
 
 		elif command == "add":
-			self.add(arg.case_id, arg.item_id[0])
+			self.add()
 
 		elif command == "checkout":
 			self.checkout(arg.item_id)
