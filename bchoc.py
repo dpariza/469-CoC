@@ -194,7 +194,7 @@ class Blockchain:
 
 				self.new_block(out_block)
 			else:
-				print("ERROR: This item is already checked out")
+				print("ERROR: This item is already checked out!!!")
 		else:
 			print("ERROR: item does not exist")
 

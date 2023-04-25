@@ -24,7 +24,7 @@ def process_commands():
 
     # subparser for 'checkin' command
     checkin_parser = subparsers.add_parser('checkin', help=' Add a new checkin entry to the chain of custody for the given evidence item')
-    checkin_parser.add_argument('-i', '--item_id', required=True, type=int, help=' Specifies the evidence item’s identifier')
+    checkin_parser.add_argument('-i', '--item_id', required=True, type=int, help=' Specifies the evidence item’s identifier!')
 
     # subparser for 'log' command
     log_parser = subparsers.add_parser('log', help='Display the blockchain entries giving the oldest first (unless -r is given)')
