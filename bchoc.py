@@ -193,7 +193,6 @@ class Blockchain:
 				out_block = Block(self.calculate_hash(), get_time(), located.case_id, evidence_id, 'CHECKEDOUT', 0, '')
 
 				self.new_block(out_block)
-				print(out_block)
 			else:
 				print("ERROR: This item is already checked out")
 		else:

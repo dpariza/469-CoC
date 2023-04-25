@@ -8,7 +8,7 @@ import struct
 def process_commands():
     # parse bchoc
     parser = argparse.ArgumentParser(description='Process bchoc commands')
-    parser.add_argument('bchoc', help='Main command')
+    #parser.add_argument('bchoc', help='Main command')
 
     # create subparsers for 'log' and 'remove' commands
     subparsers = parser.add_subparsers(dest='command')
@@ -16,7 +16,7 @@ def process_commands():
     # subparser for 'add' command
     add_parser = subparsers.add_parser('add', help='Add a new evidence item to the blockchain and associate it with the given case identifier')
     add_parser.add_argument('-c', '--case_id', required=True, type=str, help='Specifies the case identifier that the evidence is associated with')
-    add_parser.add_argument('-i', '--item_id', nargs='+', required=True, type=int, help=' Specifies the evidence item’s identifier')
+    add_parser.add_argument('-i', '--item_id', action='append', required=True, type=int, help=' Specifies the evidence item’s identifier')
 
     # subparser for 'checkout' command
     checkout_parser = subparsers.add_parser('checkout', help='Add a new checkout entry to the chain of custody for the given evidence item')
