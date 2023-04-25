@@ -160,11 +160,27 @@ class Blockchain:
 			print("Blockchain file not found. Created INITIAL block.")
 
 	def log_printer(self, block):
-		print('Case: ' + str(uuid.UUID(block.case_id)))
-		print('Item: ' + str(block.evidence_id))
-		print('Action: ' + block.state)
-		print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
-		print()
+		arg = self.args
+
+		if arg.command == 'log':
+
+			print('Case: ' + str(uuid.UUID(block.case_id)))
+			print('Item: ' + str(block.evidence_id))
+			print('Action: ' + block.state)
+			print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
+			print()
+
+		elif arg.command == 'remove':
+
+			print('Case: ' + str(uuid.UUID(block.case_id)))
+			print('Removed item: ' + str(block.evidence_id))
+			print('Status : ' + block.state)
+
+			if arg.why == 'RELEASED':
+				print('Owner info: ' + arg.owner)
+
+			print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
+			print()
 
 	def log(self):
 		arg = self.args
@@ -251,6 +267,35 @@ class Blockchain:
 		else:
 			print("ERROR: item does not exist")
 
+	def remove(self, evidence_id):
+		arg = self.args
+		located = None
+
+		for block in self.chain:
+			if block.evidence_id == evidence_id:
+				located = block
+
+		if located is not None:
+			if located.state == "CHECKEDIN" and (
+					arg.why == 'DISPOSED' or arg.why == 'DESTROYED' or arg.why == 'RELEASED'):
+				data = ''
+				data_length = 0
+
+				if arg.why == 'RELEASED' and arg.owner:
+					data = arg.owner
+					data_length = len(data) + 1
+
+				out_block = Block(self.calculate_hash(), get_time(), located.case_id,
+								  evidence_id, arg.why, data_length, data)
+
+				self.new_block(out_block)
+
+				self.log_printer(out_block)
+			else:
+				print("ERROR: This item is not checked in!!!")
+		else:
+			print("ERROR: item does not exist")
+
 	def run_command(self):
 		arg = self.args
 		command = arg.command
@@ -269,6 +314,9 @@ class Blockchain:
 
 		elif command == "checkin":
 			self.checkin(arg.item_id)
+
+		elif command == "remove":
+			self.remove(arg.item_id)
 
 		else:
 			print(f"Unknown command: {self.args.command}")
