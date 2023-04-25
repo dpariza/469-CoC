@@ -171,7 +171,7 @@ class Blockchain:
 		return prev_hash
 
 	def new_block(self, block_to_add):
-		# do all the checks for appending the chain here
+		# do all the checks for appending the chain here!
 		block_to_add.new_item = True
 		self.chain.append(block_to_add)
 
