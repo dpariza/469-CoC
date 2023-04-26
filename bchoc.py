@@ -10,6 +10,7 @@ import uuid
 import copy
 import argparse
 
+hashes = []
 
 class Block:
 
@@ -56,6 +57,11 @@ def unpack_bytes(unpack_this, data_length):
 		exit(1)
 
 	unpacked = struct.unpack(f'32s d 16s I 12s I {data_length}s', unpack_this)
+
+	# THIS IS THE CORRECT WAY TO GET PREV HASH
+	prev_hash = hashlib.sha256(unpack_this).digest()
+	prev_hash = (hex(int.from_bytes(prev_hash, "little")))[2:]
+	hashes.append(prev_hash)
 
 	hash_unpacked = str(hex(int.from_bytes(unpacked[0], "little")))[2:]
 
@@ -141,6 +147,7 @@ def setup_blockchain():
 		chain.append(init_block)
 
 		init_bytes = pack_bytes(init_block)
+		hashes.append(hex(int.from_bytes(hashlib.sha256(init_bytes).digest(), "little"))[2:])
 
 		with open(filepath, 'wb') as f:
 			f.write(init_bytes)
@@ -258,15 +265,15 @@ class Blockchain:
 					count = count + 1
 
 	def calculate_hash(self):
-		prev = self.chain[-1]
-		raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(
-			prev.evidence_id) + prev.state + str(prev.data_length) + prev.data
-		raw_hashing = raw_hashing.encode('utf-8')
+		# prev = self.chain[-1]
+		# raw_hashing = prev.previous_hash + str(prev.timestamp) + prev.case_id + str(
+		# 	prev.evidence_id) + prev.state + str(prev.data_length) + prev.data
+		# raw_hashing = raw_hashing.encode('utf-8')
+		#
+		# prev_hash = hashlib.sha256(raw_hashing).digest()
+		# prev_hash = str(hex(int.from_bytes(prev_hash, "little")))
 
-		prev_hash = hashlib.sha256(raw_hashing).digest()
-		prev_hash = str(hex(int.from_bytes(prev_hash, "little")))
-
-		return prev_hash
+		return hashes[-1]
 
 	def new_block(self, block_to_add):
 		# do all the checks for appending the chain here!
@@ -430,14 +437,26 @@ class Blockchain:
 					self.end("ERROR: Duplicate parents detected")
 			iterator = iterator + 1
 
+	def valid_hashes(self):
+		i = -1
+		for block in self.chain:
+			if i < 0:
+				i = i + 1
+				continue
+			else:
+				if hashes[i] != block.previous_hash:
+					self.end("ERROR: hash stored in child does not match hash of parent contents")
+			i = i + 1
+
 	def verify(self):
 		print(f"Transactions in blockchain: {len(self.chain)}")
 
 		# validation code here
+		self.valid_hashes()
+		self.bad_remove()
 		self.remove_before_add()
 		self.check_after_remove()
 		self.checked_twice()
-		self.bad_remove()
 		self.unique_parents()
 
 		print("State of blockchain: CLEAN")
@@ -485,9 +504,6 @@ def main():
 	driver = Blockchain()
 	driver.run_command()
 	driver.write_file()
-
-
-
 
 def process_commands():
 	# parse bchoc
