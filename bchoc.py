@@ -423,13 +423,12 @@ class Blockchain:
 
 
 	def unique_parents(self):
-		iterator = reversed(self.chain)
-
-		for block in iterator:
-			for block2 in iterator:
-				if block is not block2:
-					if block.previous_hash == block2.previous_hash:
-						self.end("ERROR: Duplicate parents detected")
+		iterator = 1
+		for block in self.chain:
+			for i in range(iterator, len(self.chain), 1):
+				if block.previous_hash == self.chain[i].previous_hash:
+					self.end("ERROR: Duplicate parents detected")
+			iterator = iterator + 1
 
 	def verify(self):
 		print(f"Transactions in blockchain: {len(self.chain)}")
