@@ -51,6 +51,10 @@ def load_file():
 
 
 def unpack_bytes(unpack_this, data_length):
+	if len(unpack_this) != (76 + data_length):
+		print("ERROR: pre-existing file is invalid")
+		exit(1)
+
 	unpacked = struct.unpack(f'32s d 16s I 12s I {data_length}s', unpack_this)
 
 	hash_unpacked = str(hex(int.from_bytes(unpacked[0], "little")))[2:]
@@ -59,6 +63,9 @@ def unpack_bytes(unpack_this, data_length):
 		hash_unpacked = '0000000000000000000000000000000000000000000000000000000000000000'
 
 	case_unpacked = str(hex(int.from_bytes(unpacked[2], "little")))[2:]
+
+	while len(case_unpacked) < 32:
+		case_unpacked = '0' + case_unpacked
 
 	if case_unpacked == '0':
 		case_unpacked = '00000000000000000000000000000000'
@@ -89,7 +96,8 @@ def parse_file(filepath):
 	# unpacks init block
 	with open(filepath, 'rb') as f:
 		if not f.peek(90):
-			Blockchain.end("ERROR: invalid INIT block")
+			print("ERROR: invalid INIT block")
+			exit(1)
 		info = f.read(90)
 
 		# unpacks init block, data length preset as 14
@@ -99,13 +107,20 @@ def parse_file(filepath):
 		while continues := f.peek(76):
 
 			if not f.peek(76):
-				Blockchain.end("ERROR: invalid block after INIT")
+				print("ERROR: invalid block after INIT")
+				exit(1)
 
 			next_data_length = continues[72:76]
+
+			if len(next_data_length) != 4:
+				print("ERROR: invalid block after INIT")
+				exit(1)
+
 			next_data_length = struct.unpack('I', next_data_length)[0]
 
 			if not f.peek(76 + next_data_length):
-				Blockchain.end("ERROR: invalid block after INIT")
+				print("ERROR: invalid block after INIT")
+				exit(1)
 
 			lookahead = f.read(76 + next_data_length)
 
@@ -172,16 +187,17 @@ class Blockchain:
 	def log_printer(self, block):
 		arg = self.args
 
+		print('Case: ' + str(uuid.UUID(block.case_id)))
+
 		if arg.command == 'log':
 
-			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Item: ' + str(block.evidence_id))
 			print('Action: ' + block.state)
 			print('Time: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
 			print()
 
 		elif arg.command == 'add':
-			print('Case: ' + str(uuid.UUID(block.case_id)))
+
 			print('Added item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
 			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
@@ -189,7 +205,6 @@ class Blockchain:
 
 		elif arg.command == 'remove':
 
-			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Removed item: ' + str(block.evidence_id))
 			print('Status : ' + block.state)
 
@@ -201,7 +216,6 @@ class Blockchain:
 
 		elif arg.command == 'checkout':
 
-			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked out item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
 			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
@@ -209,7 +223,6 @@ class Blockchain:
 
 		elif arg.command == 'checkin':
 
-			print('Case: ' + str(uuid.UUID(block.case_id)))
 			print('Checked in item: ' + str(block.evidence_id))
 			print('Status: ' + block.state)
 			print('Time of action: ' + datetime.fromtimestamp(block.timestamp).isoformat() + 'Z')
@@ -273,15 +286,15 @@ class Blockchain:
 			block_to_add = Block(self.calculate_hash(), get_time(), arg.case_id, item_id, 'CHECKEDIN',
 								 0, '')
 
-			# located = None
-			# iterator = copy.copy(self.chain)
-			# for block in reversed(iterator):
-			# 	if block.evidence_id == block_to_add.evidence_id:
-			# 		located = block
-			# 		break
-			#
-			# if located.state == block_to_add.state:
-			# 	self.end("ERROR: duplicate entry to chain detected")
+			located = None
+			iterator = reversed(copy.copy(self.chain))
+			for block in iterator:
+				if block.evidence_id == item_id:
+					located = block
+					break
+
+			if located is not None and located.state == 'CHECKEDIN':
+				self.end("ERROR: duplicate entry to chain detected")
 
 			self.new_block(block_to_add)
 			self.log_printer(block_to_add)
@@ -337,9 +350,12 @@ class Blockchain:
 				data = ''
 				data_length = 0
 
-				if arg.why == 'RELEASED' and arg.owner:
-					data = arg.owner
-					data_length = len(data) + 1
+				if arg.why == 'RELEASED':
+					if arg.owner:
+						data = arg.owner
+						data_length = len(data) + 1
+					else:
+						self.end("ERROR: Must provide owner info when releasing block")
 
 				out_block = Block(self.calculate_hash(), get_time(), located.case_id,
 								  evidence_id, arg.why, data_length, data)
@@ -360,34 +376,70 @@ class Blockchain:
 		parent_content = par.previous_hash + str(par.timestamp) + par.case_id + str(par.evidence_id) + par.state + str(
 			par.data_length) + par.data
 
-	def parents_found(self):
-		pass
+	def check_after_remove(self):
+		iterator = 1
+		for block in self.chain:
+			if block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED':
+				for i in range(iterator, len(self.chain), 1):
+					if self.chain[i].evidence_id == block.evidence_id:
+						self.end("ERROR: an item was modified after previous removal OR never added properly")
+			iterator = iterator + 1
+
+	def checked_twice(self):
+		iterator = 1
+		for block in self.chain:
+			for i in range(iterator, len(self.chain), 1):
+				if self.chain[i].evidence_id == block.evidence_id:
+					if self.chain[i].state == block.state:
+						self.end("ERROR: duplicated detected (added twice/checked in or out twice)")
+					else:
+						break
+			iterator = iterator + 1
+
+	def remove_before_add(self):
+		iterator = reversed(copy.copy(self.chain))
+
+		for block in iterator:
+			if block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED':
+				found = False
+				for block2 in self.chain:
+					if block is block2 and not found:
+						self.end("ERROR: item removed without being added")
+					else:
+						if block.evidence_id == block.evidence_id:
+							found = True
+
+	def bad_remove(self):
+		for block in self.chain:
+			#ignore initial block for state checks
+			if block.previous_hash == '0000000000000000000000000000000000000000000000000000000000000000':
+				continue
+
+			if block.state == 'RELEASED':
+				if block.data == '':
+					self.end("ERROR: item released without an owner provided")
+			elif block.state != 'CHECKEDIN' and block.state != 'CHECKEDOUT' and block.state != 'DESTROYED' and block.state != 'DISPOSED':
+				self.end("ERROR: item released with invalid why")
+
 
 	def unique_parents(self):
 		iterator = reversed(self.chain)
 
 		for block in iterator:
 			for block2 in iterator:
-				if block.case_id != block2.case_id and block.evidence_id != block2.evidence_id:
+				if block is not block2:
 					if block.previous_hash == block2.previous_hash:
 						self.end("ERROR: Duplicate parents detected")
-
-	def check_after_remove(self):
-		iterator = 0
-		for block in self.chain:
-			if block.state == 'DISPOSED' or block.state == 'DESTROYED' or block.state == 'RELEASED':
-				for i in range(iterator, len(self.chain) - 1, 1):
-					if self.chain[i].case_id == block.case_id and self.chain[i].evidence_id == block.evidence_id and \
-							(self.chain[i].state == 'CHECKEDIN' or self.chain[i].state == 'CHECKEDOUT'):
-						self.end("ERROR: item was checked in/out after removal")
 
 	def verify(self):
 		print(f"Transactions in blockchain: {len(self.chain)}")
 
 		# validation code here
-		self.parents_found()
-		self.unique_parents()
+		self.remove_before_add()
 		self.check_after_remove()
+		self.checked_twice()
+		self.bad_remove()
+		self.unique_parents()
 
 		print("State of blockchain: CLEAN")
 
